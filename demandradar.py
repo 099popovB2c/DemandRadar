@@ -4,7 +4,7 @@ from collections import Counter
 from datetime import datetime,timezone
 from pathlib import Path
 
-VERSION="0.3.0"
+VERSION="0.4.0"
 UA=f"DemandRadar/{VERSION} (+https://github.com/099popovB2c/DemandRadar)"
 STOP=set("a an the and or to of for in on with is are was were be this that it i you we they my our your app software tool program need want looking alternative wish there like have has had can could would should".split())
 TEMPLATES=['"looking for" app','"is there an app"','"alternative to"','"wish there was"','"need a tool"','"looking for software"']
