@@ -2,28 +2,31 @@
 
 DemandRadar is a privacy-friendly, open-source demand-mining tool that collects public software requests from Reddit, Hacker News and GitHub Issues, deduplicates them, clusters similar requests, tracks changes over time and surfaces demand alerts.
 
-## v0.3.0
+## v0.4.0
 
-- Saved searches (`--save-search`, `--run-saved`, `--list-saved`)
-- Trend comparison against a previous result snapshot
-- Rising / falling / stable / new opportunity states
-- Alert generation for high scores, fast-rising demand and new high-intent clusters
-- Source coverage report so failed collectors are visible instead of silently biasing results
-- Intent tags: buying, solution request, replacement, pain, workaround, wish
-- Newest-first collection from Reddit, Hacker News and GitHub Issues
-- JSON and CSV exports now include trend information
+- Automatic watch runner for saved searches
+- Snapshot history per saved search
+- Previous snapshot is connected automatically for trend deltas
+- Persistent JSONL alert log for high-score, rising and new high-intent opportunities
+- Retention control with `--keep` so old snapshots are pruned safely
+- Run once or repeat at a chosen interval with `--interval-minutes`
+- History index containing run count, alert count, top topic, top score and collector coverage
+- Existing v0.3 ranking, saved-search, trend and alert engine remains compatible
 
 ## Quick start
 
 ```bash
-python demandradar.py --demo --out data/demo.json
-python demandradar.py --preset software-requests --limit 20 --out data/results.json
 python demandradar.py --query "photo manager" --query "shared budget" --save-search ideas
-python demandradar.py --run-saved ideas --previous data/yesterday.json --out data/today.json
-python demandradar.py --list-saved
-python dashboard.py data/today.json
+python monitor.py --search ideas
+python monitor.py --search ideas --interval-minutes 60 --keep 90
+python monitor.py --search ideas --history
+python dashboard.py data/history/ideas/<snapshot>.json
 ```
 
-Open `http://127.0.0.1:8765`.
+For a zero-network smoke test:
 
-Public endpoints can rate-limit requests. Set `GITHUB_TOKEN` to raise GitHub API limits. DemandRadar has no analytics or hosted backend.
+```bash
+python monitor.py --search demo --demo
+```
+
+History is stored under `data/history/<saved-search>/`; alerts are appended to `data/alerts.jsonl`. Both are ignored by Git by default. Public endpoints can rate-limit requests. Set `GITHUB_TOKEN` to raise GitHub API limits. DemandRadar has no analytics or hosted backend.
