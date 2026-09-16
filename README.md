@@ -4,9 +4,9 @@
 [![Release](https://img.shields.io/github/v/release/099popovB2c/DemandRadar)](https://github.com/099popovB2c/DemandRadar/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**DemandRadar is an open-source demand-mining and opportunity-tracking tool for software ideas.**
+**DemandRadar is a privacy-friendly, open-source demand-mining tool for software ideas.**
 
-It searches public software requests on **Reddit, Hacker News and GitHub Issues**, removes duplicates, groups similar requests, scores demand signals, compares results over time and raises alerts when an opportunity becomes unusually strong or starts rising.
+It searches public requests on **Reddit, Hacker News and GitHub Issues**, removes duplicates, groups similar requests, scores demand signals, compares results over time and raises alerts when an opportunity becomes unusually strong or starts rising.
 
 The goal is simple:
 
@@ -16,7 +16,7 @@ DemandRadar runs locally. It has **no hosted backend, no analytics and no paid A
 
 ---
 
-## What DemandRadar does
+## How it works
 
 ```text
 Reddit + Hacker News + GitHub Issues
@@ -25,7 +25,10 @@ Reddit + Hacker News + GitHub Issues
         Collect public requests
                  |
                  v
-          Deduplicate URLs
+      Retry transient API failures
+                 |
+                 v
+          Deduplicate signals
                  |
                  v
      Detect demand / buying intent
@@ -43,7 +46,7 @@ Reddit + Hacker News + GitHub Issues
       Rising / Falling / New alerts
 ```
 
-Typical posts DemandRadar is designed to find include:
+Typical signals include:
 
 ```text
 "Looking for a simple shared budget app for couples"
@@ -55,25 +58,82 @@ Typical posts DemandRadar is designed to find include:
 
 ---
 
-## Data sources
+## v0.5.0 hardening and refactor
 
-DemandRadar currently has collectors for:
+v0.5.0 focuses on maintainability, reliability, security and test coverage.
+
+### Modular architecture
+
+The former monolithic `demandradar.py` has been split into focused modules:
+
+```text
+demandradar.py                 CLI + backward-compatible public facade
+monitor.py                     Saved-search watch runner
+dashboard.py                   Local HTTP dashboard server
+
+demandradar_core/
+  constants.py                 Version and shared constants
+  http.py                      Retry/backoff and rate-limit handling
+  collectors.py                Reddit / Hacker News / GitHub collectors
+  analysis.py                  Deduplication, intent, clustering, scoring
+  trends.py                    Snapshot comparison and alerts
+  storage.py                   JSON persistence and saved searches
+  demo.py                      Offline demo data
+
+web/
+  index.html                   Dashboard shell
+  app.js                       Safe DOM rendering
+
+tests/
+  test_rank.py                 Ranking / intent / storage behavior
+  test_monitor.py              Snapshot / retention / alert history
+  test_http.py                 Retry and rate-limit behavior
+  test_collectors.py           Collector normalization and degradation
+  test_dashboard_security.py   XSS/security regression guards
+```
+
+The old public function names remain available from `demandradar.py`, so existing scripts using functions such as `rank`, `demo`, `collect`, `intent_score`, `add_trends` and `alerts` continue to work.
+
+### HTTP resilience
+
+Live collectors now use bounded retries with exponential backoff for:
+
+- connection errors and timeouts;
+- HTTP `408` and `429`;
+- transient `5xx` responses;
+- GitHub-style `403` rate limits when `X-RateLimit-Remaining: 0`;
+- `Retry-After` and `X-RateLimit-Reset` hints.
+
+A failing source/query pair does **not** abort the full research run. The failure is recorded in coverage metadata and the remaining collectors continue.
+
+### Dashboard security
+
+The dashboard no longer builds external data with `innerHTML`.
+
+- Untrusted strings are rendered through `textContent` / DOM nodes.
+- External result links allow only `http:` and `https:` protocols.
+- Links opened in a new tab use `noopener noreferrer`.
+- The server sends a Content Security Policy, `nosniff`, no-referrer and no-store headers.
+- The dashboard server binds to `127.0.0.1` by default.
+- Inline JavaScript was moved to `web/app.js` so the CSP can restrict scripts to the local origin.
+
+---
+
+## Data sources
 
 | Source | What is searched | Authentication |
 | --- | --- | --- |
 | Reddit | Public search results | Not required for the current public endpoint |
 | Hacker News | Stories through the Algolia HN API | Not required |
-| GitHub | Public Issues Search API | Optional `GITHUB_TOKEN` recommended for higher rate limits |
+| GitHub | Public Issues Search API | Optional `GITHUB_TOKEN` recommended |
 
-Public endpoints can rate-limit requests. DemandRadar records collector coverage and failures instead of silently hiding missing sources.
+DemandRadar records collector coverage, successful source/query pairs and failures in each result file.
 
 ---
 
 ## Demand intent detection
 
 DemandRadar looks for language that indicates a real need, replacement search, frustration or willingness to pay.
-
-Current signal examples include:
 
 | Signal | Example language | Relative weight |
 | --- | --- | ---: |
@@ -85,155 +145,55 @@ Current signal examples include:
 | Pain point | `can't find`, `frustrated`, `annoying` | 3 |
 | Workaround | `manual`, `spreadsheet`, `workaround` | 1 |
 
-Each collected item receives an intent score and intent tags before clustering.
+Each collected item receives intent tags and an intent score before clustering.
 
 ---
 
-## How clustering works
+## Clustering
 
-DemandRadar does **not** require an LLM to group requests.
+DemandRadar currently uses local lexical vectors rather than an LLM.
 
-The current engine:
+1. Title and body text are tokenized.
+2. Common stop words are removed.
+3. Token-frequency vectors are built.
+4. Cosine similarity is measured against existing clusters.
+5. Signals above the configured similarity threshold are grouped together.
 
-1. normalizes text;
-2. removes common stop words;
-3. builds token-frequency vectors;
-4. compares requests using **cosine similarity**;
-5. merges sufficiently similar requests into the same opportunity cluster.
-
-That means the core pipeline stays lightweight, auditable and inexpensive to run.
-
-The similarity threshold can be adjusted with `--threshold`.
+This keeps the core zero-dependency and private, while leaving room for optional semantic embeddings later.
 
 ---
 
-## Opportunity score
+## Opportunity Score
 
-Each cluster receives an `opportunity_score` from several signals.
+Each cluster receives a `0–100` opportunity score.
 
 Current weighting:
 
 | Component | Weight |
 | --- | ---: |
-| Repeated mentions / frequency | 28% |
+| Frequency | 28% |
 | Engagement | 24% |
 | Source diversity | 18% |
 | Demand intent | 20% |
 | Freshness | 10% |
 
-Conceptually:
-
-```text
-Opportunity Score =
-  0.28 * Frequency
-+ 0.24 * Engagement
-+ 0.18 * Source Diversity
-+ 0.20 * Demand Intent
-+ 0.10 * Freshness
-```
-
-A strong opportunity is therefore not just a post with many upvotes. Repetition, intent, recency and appearance across multiple sources all matter.
-
----
-
-## Trend tracking
-
-DemandRadar can compare a new run with an older snapshot.
-
-A topic is marked as:
-
-- `new`
-- `rising`
-- `stable`
-- `falling`
-
-For matched clusters it stores the previous score, score delta and mentions delta.
-
-Example:
-
-```text
-Offline photo manager
-Previous score: 61.2
-Current score: 77.8
-Score delta: +16.6
-Trend: rising
-```
-
----
-
-## Alerts
-
-DemandRadar can raise alerts when a cluster crosses an opportunity threshold, rises quickly, or appears as a new high-intent request.
-
-Default alert logic includes:
-
-- opportunity score >= `70`;
-- score increase >= `10`;
-- new cluster with high demand intent.
-
-Alert thresholds can be changed from the CLI.
-
-The watch runner appends persistent alerts to:
-
-```text
-data/alerts.jsonl
-```
-
----
-
-## v0.4.0 watch mode
-
-v0.4.0 adds repeatable monitoring for saved searches.
-
-The watch runner:
-
-- runs saved searches automatically;
-- stores timestamped snapshots;
-- connects the previous snapshot automatically;
-- calculates trend deltas;
-- appends persistent alerts;
-- keeps a history index;
-- prunes old snapshots with retention controls;
-- can run once or at a chosen interval.
-
-History layout:
-
-```text
-data/
-  history/
-    <saved-search>/
-      20260916T120000Z.json
-      20260916T130000Z.json
-      index.json
-  alerts.jsonl
-```
-
-Runtime history and alerts are ignored by Git by default.
+The score is a research heuristic, not a prediction that a product will succeed.
 
 ---
 
 ## Requirements
 
-- Python 3
+- Python 3.10+
 - Internet access for live collectors
-- No third-party Python packages are required for the core project
-
-`requirements.txt` intentionally contains only a note because the current implementation uses the Python standard library.
+- No third-party Python packages for the core project
 
 ---
 
 ## Quick start
 
-Clone the repository:
-
 ```bash
 git clone https://github.com/099popovB2c/DemandRadar.git
 cd DemandRadar
-```
-
-Run a live search:
-
-```bash
 python demandradar.py --query "photo manager" --query "shared budget"
 ```
 
@@ -241,6 +201,18 @@ Results are written to:
 
 ```text
 data/results.json
+```
+
+Offline smoke test:
+
+```bash
+python demandradar.py --demo
+```
+
+Show version:
+
+```bash
+python demandradar.py --version
 ```
 
 ---
@@ -264,38 +236,9 @@ github
 
 ---
 
-## Use the built-in software-request preset
+## Saved searches and watch mode
 
-```bash
-python demandradar.py --preset software-requests
-```
-
-The preset searches phrases such as:
-
-```text
-"looking for" app
-"is there an app"
-"alternative to"
-"wish there was"
-"need a tool"
-"looking for software"
-```
-
----
-
-## Filter weak intent
-
-Only keep items with at least a chosen intent score:
-
-```bash
-python demandradar.py \
-  --query "photo manager" \
-  --min-intent 3
-```
-
----
-
-## Save a search
+Save a search:
 
 ```bash
 python demandradar.py \
@@ -304,90 +247,70 @@ python demandradar.py \
   --save-search photos
 ```
 
-Saved-search configuration is stored under `data/saved_searches.json`.
-
-Run it again later:
-
-```bash
-python demandradar.py --run-saved photos
-```
-
-List saved searches:
-
-```bash
-python demandradar.py --list-saved
-```
-
----
-
-## Monitor a saved search
-
-Run once:
+Run it once:
 
 ```bash
 python monitor.py --search photos
 ```
 
-Run every 60 minutes and retain the most recent 90 snapshots:
+Run every 60 minutes and keep the latest 90 snapshots:
 
 ```bash
 python monitor.py --search photos --interval-minutes 60 --keep 90
 ```
 
-Show monitoring history:
+View history metadata:
 
 ```bash
 python monitor.py --search photos --history
 ```
 
----
+History is stored under:
 
-## Zero-network demo
-
-Use the bundled synthetic examples to test the pipeline without making web requests:
-
-```bash
-python demandradar.py --demo
+```text
+data/history/<saved-search>/
 ```
 
-or test watch mode:
+Alerts are appended to:
 
-```bash
-python monitor.py --search demo --demo
+```text
+data/alerts.jsonl
 ```
-
-This is useful for smoke testing, CI and understanding the output format.
 
 ---
 
-## Compare against a previous snapshot
+## Trends and alerts
 
-```bash
-python demandradar.py \
-  --query "photo manager" \
-  --previous data/old-results.json \
-  --out data/new-results.json
+When a previous snapshot exists, clusters are annotated as:
+
+```text
+new
+rising
+stable
+falling
 ```
 
-The resulting opportunity records include trend information when a sufficiently similar older cluster is found.
+Default alert triggers include:
+
+- opportunity score >= `70`;
+- score increase >= `10`;
+- a new high-intent cluster.
+
+Thresholds can be changed from the CLI.
 
 ---
 
 ## CSV export
 
 ```bash
-python demandradar.py \
-  --query "shared budget" \
-  --csv data/opportunities.csv
+python demandradar.py --query "need a tool" --csv opportunities.csv
 ```
-
-The CSV includes fields such as topic, mentions, engagement, sources, demand intent, freshness, opportunity score and trend delta.
 
 ---
 
 ## Local dashboard
 
-Generate or choose a JSON result file, then run:
+Generate or choose a result file, then run:
 
 ```bash
 python dashboard.py data/results.json
@@ -399,39 +322,13 @@ Open:
 http://127.0.0.1:8765
 ```
 
-The dashboard server binds only to `127.0.0.1` in the current implementation.
-
----
-
-## Example output
-
-A simplified opportunity record looks like this:
-
-```json
-{
-  "topic": "shared budget couples",
-  "mentions": 18,
-  "engagement": 640,
-  "sources": ["reddit", "hn", "github"],
-  "demand_intent": 8.2,
-  "freshness": 0.91,
-  "opportunity_score": 82.4,
-  "trend": {
-    "state": "rising",
-    "previous_score": 65.8,
-    "score_delta": 16.6,
-    "mentions_delta": 6
-  }
-}
-```
-
-Actual results depend on the selected queries, public source availability and rate limits.
+A different port can be selected with `--port`.
 
 ---
 
 ## GitHub API token
 
-DemandRadar can search public GitHub Issues without a token, but authenticated requests usually have higher API limits.
+Public GitHub Issues can be searched without a token, but authenticated requests generally have higher API limits.
 
 PowerShell:
 
@@ -458,26 +355,22 @@ DemandRadar is designed as a local research tool.
 - No DemandRadar account is required.
 - No analytics SDK is included.
 - No hosted DemandRadar backend is required.
-- Search results and monitoring history are stored locally.
+- Search results and monitoring history stay local.
 - The project does not send collected data to an AI provider.
 
-Live searches still contact the selected public source APIs/endpoints, because that is where the public data comes from.
+Live searches still contact the selected public source APIs/endpoints because that is where the public data comes from.
 
 ---
 
 ## Current limitations
 
-DemandRadar is intentionally still a young project. Current limitations include:
-
 - Reddit public search can be rate-limited or change behavior.
-- Clustering is lexical/vector based rather than embedding or LLM based.
-- Similar concepts that use very different vocabulary can end up in separate clusters.
+- Clustering is lexical/vector based rather than embedding based.
+- Similar concepts using very different vocabulary can end up in separate clusters.
 - Competition analysis is not yet part of the opportunity score.
 - Reddit comments are not deeply mined yet.
-- Alerts are currently local JSONL records rather than email/Telegram/Discord notifications.
-- The local dashboard is functional but still minimal.
-
-These limitations are important when interpreting opportunity scores: DemandRadar is a research aid, not a guarantee that a software idea will succeed.
+- Alerts are local JSONL records rather than email/Telegram/Discord notifications.
+- The dashboard is intentionally lightweight.
 
 ---
 
@@ -489,37 +382,26 @@ High-value next steps include:
 - deeper Reddit comment mining;
 - automatic query expansion;
 - spam and promotion filtering;
-- semantic/embedding clustering as an optional layer;
+- optional semantic/embedding clustering;
 - competitor discovery and competition scoring;
-- demand-vs-competition opportunity ranking;
+- demand-vs-competition ranking;
 - daily and weekly trend charts;
 - email / Telegram / Discord alerts;
 - richer browser dashboard;
-- additional public sources where practical;
 - packaged installation through `pipx` / PyPI.
-
----
-
-## Project structure
-
-```text
-demandradar.py   Core collectors, intent analysis, clustering, ranking and exports
-monitor.py       Saved-search watch runner, snapshots, history and persistent alerts
-dashboard.py     Small local HTTP dashboard server
-web/             Dashboard frontend
-data/            Saved searches and runtime output
- tests/           Automated tests
-```
 
 ---
 
 ## Development
 
-Run the tests with:
+Compile and run the test suite:
 
 ```bash
+python -m compileall -q demandradar.py monitor.py dashboard.py demandradar_core tests
 python -m unittest discover -s tests -v
 ```
+
+CI currently tests Python 3.10 and 3.13.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidance and [SECURITY.md](SECURITY.md) for security reporting.
 
