@@ -1,0 +1,15 @@
+{
+  "searches": {
+    "software-ideas": {
+      "queries": [
+        "\"is there an app\"",
+        "\"wish there was\"",
+        "\"would pay\" software"
+      ],
+      "sources": ["reddit", "hn", "github"],
+      "limit": 30,
+      "threshold": 0.2,
+      "min_intent": 2
+    }
+  }
+}
