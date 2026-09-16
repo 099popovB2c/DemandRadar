@@ -1,32 +1,24 @@
 # DemandRadar
 
-DemandRadar is a privacy-friendly, open-source demand-mining tool that collects public software requests from Reddit, Hacker News and GitHub Issues, normalizes them, groups similar requests and ranks opportunities.
+DemandRadar is a privacy-friendly, open-source demand-mining tool that collects public software requests from Reddit, Hacker News and GitHub Issues, deduplicates them, clusters similar requests and ranks opportunities.
 
-## MVP
+## v0.2.0
 
-- Reddit public search connector (no API key required for light use)
-- Hacker News Algolia connector
-- GitHub Issues search connector (optional `GITHUB_TOKEN` for higher rate limits)
-- Keyword templates such as `looking for app`, `alternative to`, `wish there was`
-- Opportunity score based on frequency, engagement and competition hints
+- Demand-intent scoring for phrases such as `would pay`, `wish there was`, `need a tool` and `alternative to`
+- Freshness, source-diversity, frequency and engagement score components
+- URL deduplication and title-weighted clustering
+- Multi-query mode and a `software-requests` preset
+- Minimum intent filtering
+- Evidence excerpts and richer dashboard filters/sorting
 - JSON/CSV export
-- Static HTML dashboard
-- Offline fixture mode for tests
 
 ## Quick start
 
 ```bash
 python demandradar.py --demo --out data/demo.json
-python demandradar.py --query "photo manager" --sources reddit,hn,github --out data/results.json
+python demandradar.py --preset software-requests --limit 20 --out data/results.json
+python demandradar.py --query "photo manager" --query "shared budget" --min-intent 2 --out data/results.json
 python dashboard.py data/results.json
 ```
 
-Then open `http://127.0.0.1:8765`.
-
-## Notes
-
-Public endpoints can change or rate-limit requests. DemandRadar uses a clear User-Agent and conservative timeouts. Set `GITHUB_TOKEN` to increase GitHub API limits.
-
-## Privacy
-
-No analytics, no tracking and no hosted backend. Collected public posts stay on your machine.
+Open `http://127.0.0.1:8765`. Public endpoints can rate-limit requests; `GITHUB_TOKEN` raises GitHub API limits. No analytics or hosted backend are used.
