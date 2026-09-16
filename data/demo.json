@@ -1,0 +1,98 @@
+{
+  "generated_at": "2026-09-16T04:51:08.755176+00:00",
+  "query": "software request",
+  "items": [
+    {
+      "source": "reddit",
+      "title": "Looking for a simple shared budget app for couples",
+      "text": "We want something easier than a spreadsheet.",
+      "url": "https://reddit.com/",
+      "score": 146,
+      "comments": 71,
+      "created": null
+    },
+    {
+      "source": "reddit",
+      "title": "Is there an offline Google Photos alternative?",
+      "text": "Local timeline and duplicate finder would be enough.",
+      "url": "https://reddit.com/",
+      "score": 91,
+      "comments": 43,
+      "created": null
+    },
+    {
+      "source": "github",
+      "title": "Feature request: visual repository health report",
+      "text": "Check docs, secrets, outdated deps and CI.",
+      "url": "https://github.com/",
+      "score": 44,
+      "comments": 12,
+      "created": null
+    },
+    {
+      "source": "hn",
+      "title": "Ask HN: simple self-hosted family budget?",
+      "text": "Need CSV import and shared household categories.",
+      "url": "https://news.ycombinator.com/",
+      "score": 63,
+      "comments": 32,
+      "created": null
+    }
+  ],
+  "opportunities": [
+    {
+      "topic": "simple budget shared couples",
+      "mentions": 2,
+      "engagement": 415,
+      "sources": [
+        "hn",
+        "reddit"
+      ],
+      "examples": [
+        {
+          "title": "Looking for a simple shared budget app for couples",
+          "url": "https://reddit.com/",
+          "source": "reddit"
+        },
+        {
+          "title": "Ask HN: simple self-hosted family budget?",
+          "url": "https://news.ycombinator.com/",
+          "source": "hn"
+        }
+      ],
+      "opportunity_score": 77.8
+    },
+    {
+      "topic": "offline google photos",
+      "mentions": 1,
+      "engagement": 177,
+      "sources": [
+        "reddit"
+      ],
+      "examples": [
+        {
+          "title": "Is there an offline Google Photos alternative?",
+          "url": "https://reddit.com/",
+          "source": "reddit"
+        }
+      ],
+      "opportunity_score": 37.9
+    },
+    {
+      "topic": "feature request visual repository",
+      "mentions": 1,
+      "engagement": 68,
+      "sources": [
+        "github"
+      ],
+      "examples": [
+        {
+          "title": "Feature request: visual repository health report",
+          "url": "https://github.com/",
+          "source": "github"
+        }
+      ],
+      "opportunity_score": 34.3
+    }
+  ]
+}
