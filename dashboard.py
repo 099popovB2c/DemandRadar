@@ -6,8 +6,7 @@ import http.server
 from pathlib import Path
 from urllib.parse import urlsplit
 
-ROOT = Path(__file__).resolve().parent
-WEB_DIR = ROOT / "web"
+WEB_DIR = Path(__file__).resolve().with_name("demandradar_core") / "web"
 
 SECURITY_HEADERS = {
     "Content-Security-Policy": (
@@ -19,7 +18,6 @@ SECURITY_HEADERS = {
     "Referrer-Policy": "no-referrer",
     "Cache-Control": "no-store",
 }
-
 
 def make_handler(data_path):
     data_path = Path(data_path).resolve()
@@ -58,13 +56,11 @@ def make_handler(data_path):
 
     return DashboardHandler
 
-
 def build_parser():
     parser = argparse.ArgumentParser(description="Serve the DemandRadar dashboard locally")
     parser.add_argument("data", nargs="?", default="data/results.json")
     parser.add_argument("--port", type=int, default=8765)
     return parser
-
 
 def main(argv=None):
     args = build_parser().parse_args(argv)
@@ -73,7 +69,6 @@ def main(argv=None):
     print(f"DemandRadar dashboard: http://{address[0]}:{address[1]}")
     with http.server.ThreadingHTTPServer(address, handler) as server:
         server.serve_forever()
-
 
 if __name__ == "__main__":
     main()

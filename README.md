@@ -189,6 +189,34 @@ The score is a research heuristic, not a prediction that a product will succeed.
 
 ---
 
+## Install with pipx
+
+Install directly from GitHub:
+
+```bash
+pipx install "git+https://github.com/099popovB2c/DemandRadar.git"
+```
+
+After installation, these commands are available globally:
+
+```text
+demandradar
+demandradar-monitor
+demandradar-dashboard
+```
+
+Examples:
+
+```bash
+demandradar --query "photo manager"
+demandradar-monitor --search photos
+demandradar-dashboard data/results.json
+```
+
+PyPI publication is the next distribution step; the repository is already structured as a standard Python package.
+
+---
+
 ## Quick start
 
 ```bash
@@ -388,7 +416,7 @@ High-value next steps include:
 - daily and weekly trend charts;
 - email / Telegram / Discord alerts;
 - richer browser dashboard;
-- packaged installation through `pipx` / PyPI.
+- PyPI publication and signed release automation.
 
 ---
 

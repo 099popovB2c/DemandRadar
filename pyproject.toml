@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "demandradar"
+version = "0.5.0"
+description = "Privacy-friendly demand mining and opportunity tracking for software ideas"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {file = "LICENSE"}
+authors = [{name = "099popovB2c"}]
+keywords = ["demand", "research", "reddit", "hacker-news", "github", "product-ideas", "cli"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Environment :: Console",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Software Development :: Quality Assurance",
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/099popovB2c/DemandRadar"
+Repository = "https://github.com/099popovB2c/DemandRadar"
+Issues = "https://github.com/099popovB2c/DemandRadar/issues"
+
+[project.scripts]
+demandradar = "demandradar:main"
+demandradar-monitor = "monitor:main"
+demandradar-dashboard = "dashboard:main"
+
+[tool.setuptools]
+py-modules = ["demandradar", "monitor", "dashboard"]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+include = ["demandradar_core*"]
+
+[tool.setuptools.package-data]
+demandradar_core = ["web/*.html", "web/*.js"]
